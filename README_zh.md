@@ -56,20 +56,23 @@ One MCP 是一个强大的 Model Context Protocol (MCP) 管理与分发系统。
 ## 🐳 Docker
 
 - 从 GHCR 拉取镜像
-  - `docker pull ghcr.io/DustinZrm/one-api:latest`
+  - `docker pull ghcr.io/dustinzrm/one-mcp:latest`
 - 本地运行
-  - `docker run -d -p 8080:8080 --name one-mcp ghcr.io/DustinZrm/one-api:latest`
+  - `docker run -d -p 8080:8080 --name one-mcp ghcr.io/dustinzrm/one-mcp:latest`
 - 启用数据持久化
-  - `docker run -d -p 8080:8080 -v one-mcp-data:/app/server --name one-mcp ghcr.io/DustinZrm/one-api:latest`
+  - `docker run -d -p 8080:8080 -v one-mcp-data:/app/server --name one-mcp ghcr.io/dustinzrm/one-mcp:latest`
   - SQLite 数据库 `one-mcp.db` 位于 `/app/server`（挂载卷 `one-mcp-data`）
 - 环境变量
   - `GIN_MODE=release`（默认开启）
   - 如果上游服务需要代理，可加入 `HTTP_PROXY`/`HTTPS_PROXY`
+- 多架构支持
+  - 镜像包含 `linux/amd64`、`linux/arm64`、`linux/arm/v7`
+  - 指定平台测试：`docker run --rm -p 8080:8080 --platform linux/arm64 ghcr.io/dustinzrm/one-mcp:latest`
 - 可选：Docker Compose
   - ```yaml
     services:
       one-mcp:
-        image: ghcr.io/DustinZrm/one-api:latest
+        image: ghcr.io/dustinzrm/one-mcp:latest
         container_name: one-mcp
         ports:
           - "8080:8080"

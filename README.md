@@ -56,20 +56,23 @@ With One MCP, you can centrally manage your AI tools, provide granular access co
 ## 🐳 Docker
 
 - Pull from GHCR
-  - `docker pull ghcr.io/DustinZrm/one-api:latest`
+  - `docker pull ghcr.io/dustinzrm/one-mcp:latest`
 - Run locally
-  - `docker run -d -p 8080:8080 --name one-mcp ghcr.io/DustinZrm/one-api:latest`
+  - `docker run -d -p 8080:8080 --name one-mcp ghcr.io/dustinzrm/one-mcp:latest`
 - Enable data persistence
-  - `docker run -d -p 8080:8080 -v one-mcp-data:/app/server --name one-mcp ghcr.io/DustinZrm/one-api:latest`
+  - `docker run -d -p 8080:8080 -v one-mcp-data:/app/server --name one-mcp ghcr.io/dustinzrm/one-mcp:latest`
   - SQLite database `one-mcp.db` is stored in `/app/server` (volume `one-mcp-data`)
 - Environment variables
   - `GIN_MODE=release` (default)
   - Add `HTTP_PROXY`/`HTTPS_PROXY` if upstream servers require proxy access
+- Multi-arch support
+  - Images include `linux/amd64`, `linux/arm64`, `linux/arm/v7`
+  - Test explicit platform: `docker run --rm -p 8080:8080 --platform linux/arm64 ghcr.io/dustinzrm/one-mcp:latest`
 - Docker Compose (optional)
   - ```yaml
     services:
       one-mcp:
-        image: ghcr.io/DustinZrm/one-api:latest
+        image: ghcr.io/dustinzrm/one-mcp:latest
         container_name: one-mcp
         ports:
           - "8080:8080"
