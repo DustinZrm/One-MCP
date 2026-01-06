@@ -47,6 +47,45 @@ func (g *Gateway) ReloadUpstreams() {
 	}
 }
 
+// CheckPermission checks if a key with the given permissions can access a specific server/tool.
+// This function is stateless and pure logic.
+func CheckPermission(allowedServerIDs []string, allowedTools []string, srvID string, toolName string) bool {
+	// Create allowed map for fast lookup
+	// Optimization: If both lists are empty (and that means "all allowed"), checking here is fast.
+	// However, we need to construct maps to be sure.
+
+	// Quick check: if both nil/empty, allow all?
+	// The original logic implies:
+	// - If allowedTools is not empty, it takes precedence.
+	// - If allowedTools is empty, we check allowedServers.
+	// - If allowedServers is empty, we allow all.
+
+	// 1. Check Tool Permission first (if configured)
+	if len(allowedTools) > 0 {
+		allowedToolMap := make(map[string]bool)
+		for _, t := range allowedTools {
+			allowedToolMap[t] = true
+		}
+
+		if allowedToolMap["*"] {
+			return true
+		}
+		return allowedToolMap[toolName]
+	}
+
+	// 2. Fallback to Server Permission
+	if len(allowedServerIDs) > 0 {
+		allowedSrv := make(map[string]bool)
+		for _, id := range allowedServerIDs {
+			allowedSrv[id] = true
+		}
+		return allowedSrv[srvID]
+	}
+
+	// No restrictions implies all allowed
+	return true
+}
+
 func (g *Gateway) HandleMessage(msg []byte, allowedServerIDs []string, allowedTools []string) (*JSONRPCMessage, error) {
 	fmt.Printf("[Gateway] Received message: %s\n", string(msg))
 	var req JSONRPCMessage
@@ -55,37 +94,9 @@ func (g *Gateway) HandleMessage(msg []byte, allowedServerIDs []string, allowedTo
 		return nil, err
 	}
 	
-	// Create allowed map for fast lookup
-	allowedSrv := make(map[string]bool)
-	for _, id := range allowedServerIDs {
-		allowedSrv[id] = true
-	}
-
-	allowedToolMap := make(map[string]bool)
-	for _, t := range allowedTools {
-		allowedToolMap[t] = true
-	}
-	
-	// Permission check function
+	// Permission check closure to pass down
 	hasPermission := func(srvID string, toolName string) bool {
-		// 1. Check Tool Permission first (if configured)
-		if len(allowedToolMap) > 0 {
-			if allowedToolMap["*"] {
-				return true
-			}
-			return allowedToolMap[toolName]
-		}
-
-		// 2. Fallback to Server Permission
-		if len(allowedSrv) == 0 {
-			return true // No restrictions implies all allowed? Or need explicit "*"
-		}
-		// If allowedServerIDs is empty, it usually means allow all in our previous logic, 
-		// but let's stick to: if list provided, must match. If empty list, maybe allow all? 
-		// Actually, let's assume if empty list provided in Session, it means ALL allowed 
-		// ONLY IF the original DB string was empty.
-		// For safety: empty allowedSrv means allow all.
-		return allowedSrv[srvID]
+		return CheckPermission(allowedServerIDs, allowedTools, srvID, toolName)
 	}
 	
 	switch req.Method {
@@ -372,4 +383,3 @@ func (g *Gateway) GetAllTools() ([]map[string]interface{}, error) {
 	
 	return result.Tools, nil
 }
-

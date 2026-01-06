@@ -9,12 +9,14 @@ import (
 	"net/http"
 	"net/url"
 	"one-mcp/internal/model"
+	"time"
 )
 
 // HTTPTransport implements Transport for wrapping a REST API as an MCP Tool
 type HTTPTransport struct {
 	Config     model.UpstreamServer
 	ToolConfig ToolConfig
+	Client     *http.Client
 	
 	onMessage func([]byte)
 	onReady   func()
@@ -44,6 +46,9 @@ func NewHTTPTransport(cfg model.UpstreamServer) *HTTPTransport {
 	return &HTTPTransport{
 		Config:     cfg,
 		ToolConfig: tc,
+		Client: &http.Client{
+			Timeout: 30 * time.Second,
+		},
 	}
 }
 
@@ -300,8 +305,7 @@ func (t *HTTPTransport) executeHTTPRequest(args map[string]interface{}) (string,
 		req.Header.Set("Authorization", "Bearer "+t.Config.AuthToken)
 	}
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := t.Client.Do(req)
 	if err != nil {
 		return "", err
 	}

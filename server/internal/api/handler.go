@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"one-mcp/internal/core"
 	"one-mcp/internal/model"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -17,8 +19,18 @@ import (
 	"gorm.io/gorm"
 )
 
-// JWT Secret Key (In production, this should be an env var)
-var jwtSecret = []byte("one-mcp-secret-key-change-me")
+var jwtSecret []byte
+
+func init() {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		// Use a fixed fallback for development convenience but log warning
+		// In production this should be set
+		secret = "one-mcp-secret-key-change-me"
+		log.Println("[WARNING] JWT_SECRET not set, using default insecure key. Please set JWT_SECRET env var.")
+	}
+	jwtSecret = []byte(secret)
+}
 
 type Handler struct {
 	db      *gorm.DB
@@ -315,6 +327,11 @@ func (h *Handler) HandleSSE(c *gin.Context) {
 	var allowedTools []string
 	if apiKey.AllowedTools != "" {
 		json.Unmarshal([]byte(apiKey.AllowedTools), &allowedTools)
+	}
+
+	// Log connection for auditing
+	if len(allowedServers) == 0 && len(allowedTools) == 0 {
+		fmt.Printf("[Audit] Key '%s' (ID: %d) connected with FULL ACCESS.\n", apiKey.Key, apiKey.ID)
 	}
 
 	c.Header("Content-Type", "text/event-stream")

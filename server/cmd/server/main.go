@@ -44,12 +44,22 @@ func main() {
 	var adminCount int64
 	db.Model(&model.Admin{}).Count(&adminCount)
 	if adminCount == 0 {
+		// Only create default admin if no admin exists
 		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("admin"), bcrypt.DefaultCost)
 		db.Create(&model.Admin{
 			Username: "admin",
 			Password: string(hashedPassword),
 		})
 		log.Println("Initialized default admin user: admin / admin")
+		log.Println("!!! WARNING: Default password is in use. Please change it immediately via the Dashboard !!!")
+	} else {
+		// Check if default admin still has default password
+		var defaultAdmin model.Admin
+		if err := db.Where("username = ?", "admin").First(&defaultAdmin).Error; err == nil {
+			if err := bcrypt.CompareHashAndPassword([]byte(defaultAdmin.Password), []byte("admin")); err == nil {
+				log.Println("!!! SECURITY WARNING: Default admin account still uses password 'admin'. Please change it immediately !!!")
+			}
+		}
 	}
 
 	// Init Gateway
@@ -63,11 +73,12 @@ func main() {
 	
 	// CORS
 	config := cors.DefaultConfig()
-	if origins := os.Getenv("ALLOWED_ORIGINS"); origins != "" {
-		config.AllowOrigins = strings.Split(origins, ",")
-		config.AllowAllOrigins = false
+	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+	if allowedOrigins != "" {
+		config.AllowOrigins = strings.Split(allowedOrigins, ",")
 	} else {
 		config.AllowAllOrigins = true
+		log.Println("[WARNING] ALLOWED_ORIGINS not set, allowing all origins (CORS). This is insecure for production.")
 	}
 	config.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
 	r.Use(cors.New(config))
@@ -103,13 +114,17 @@ func main() {
 	}
 
 	// Serve Frontend (SPA)
-	// Serve static files from ../web/dist
-	r.Use(static.Serve("/", static.LocalFile("../web/dist", true)))
+	// Serve static files from ../web/dist or specified directory
+	webDist := os.Getenv("WEB_DIST")
+	if webDist == "" {
+		webDist = "../web/dist"
+	}
+	r.Use(static.Serve("/", static.LocalFile(webDist, true)))
 	
 	// Fallback for SPA: if not found (and not api), serve index.html
 	r.NoRoute(func(c *gin.Context) {
 		if !strings.HasPrefix(c.Request.URL.Path, "/api") && !strings.HasPrefix(c.Request.URL.Path, "/mcp") {
-			c.File("../web/dist/index.html")
+			c.File(filepath.Join(webDist, "index.html"))
 		}
 	})
 
